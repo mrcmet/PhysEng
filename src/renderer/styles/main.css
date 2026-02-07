@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root {
+  --color-canvas-bg: #1a1a2e;
+  --color-grid-minor: rgba(255, 255, 255, 0.05);
+  --color-grid-major: rgba(255, 255, 255, 0.12);
+  --color-grid-axis-x: rgba(239, 68, 68, 0.6);
+  --color-grid-axis-y: rgba(34, 197, 94, 0.6);
+}
+
+canvas {
+  display: block;
+}
