@@ -1,12 +1,16 @@
 import { Camera } from './Camera';
 import { GridRenderer } from './GridRenderer';
+import { PrimitiveRenderer } from './PrimitiveRenderer';
 import { CANVAS_BG_COLOR } from './RenderConfig';
+import type { AppState } from '../core/AppState';
+import type { PhysicsWorld } from '../physics/PhysicsWorld';
 
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private camera: Camera;
   private gridRenderer: GridRenderer;
+  private primitiveRenderer: PrimitiveRenderer;
   private dpr = 1;
 
   constructor(canvas: HTMLCanvasElement, camera: Camera) {
@@ -14,6 +18,7 @@ export class CanvasRenderer {
     this.ctx = canvas.getContext('2d')!;
     this.camera = camera;
     this.gridRenderer = new GridRenderer();
+    this.primitiveRenderer = new PrimitiveRenderer();
     this.handleResize();
   }
 
@@ -22,11 +27,10 @@ export class CanvasRenderer {
     const rect = this.canvas.getBoundingClientRect();
     this.canvas.width = rect.width * this.dpr;
     this.canvas.height = rect.height * this.dpr;
-    // Camera works in CSS pixel space
     this.camera.setCanvasSize(rect.width, rect.height);
   }
 
-  render(): void {
+  render(appState: AppState, physicsWorld: PhysicsWorld): void {
     const ctx = this.ctx;
     const cssWidth = this.canvas.width / this.dpr;
     const cssHeight = this.canvas.height / this.dpr;
@@ -36,12 +40,15 @@ export class CanvasRenderer {
     ctx.fillStyle = CANVAS_BG_COLOR;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-    // Scale for DPR, then apply camera transform
+    // Scale for DPR, then apply camera transform (world-space)
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.camera.applyTransform(ctx);
 
-    // Draw grid (in world-space)
+    // Draw grid
     this.gridRenderer.render(ctx, this.camera, cssWidth, cssHeight);
+
+    // Draw primitives
+    this.primitiveRenderer.render(ctx, this.camera, appState, physicsWorld);
 
     // Restore to screen-space for overlays
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);

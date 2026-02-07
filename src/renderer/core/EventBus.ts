@@ -1,4 +1,32 @@
+import type { PrimitiveType } from '../physics/primitives/Primitive';
+
+export interface Vec2 {
+  x: number;
+  y: number;
+}
+
+export type SimulationState = 'editing' | 'playing' | 'paused';
+
 export interface EventMap {
+  // Primitive lifecycle
+  'primitive:place-request': { type: PrimitiveType; worldPos: Vec2 };
+  'primitive:created': { id: string };
+  'primitive:deleted': { id: string };
+  'primitive:property-changed': { id: string; key: string; value: unknown };
+
+  // Selection
+  'selection:changed': { selected: string[] };
+
+  // Simulation control
+  'simulation:play': void;
+  'simulation:pause': void;
+  'simulation:step-forward': void;
+  'simulation:step-backward': void;
+  'simulation:reset': void;
+  'simulation:speed-changed': { speed: number };
+  'simulation:state-changed': { state: SimulationState };
+
+  // Camera
   'camera:changed': void;
   'canvas:resized': { width: number; height: number };
 }
