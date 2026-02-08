@@ -11,6 +11,7 @@ import { InteractionManager } from './interaction/InteractionManager';
 import { SelectionManager } from './interaction/SelectionManager';
 import { SelectMode } from './interaction/modes/SelectMode';
 import { PlaceMode } from './interaction/modes/PlaceMode';
+import { ConnectMode } from './interaction/modes/ConnectMode';
 import { PalettePanel } from './ui/panels/PalettePanel';
 import { PropertiesPanel } from './ui/panels/PropertiesPanel';
 import { SimSettingsPanel } from './ui/panels/SimSettingsPanel';
@@ -36,14 +37,28 @@ const placeMode = new PlaceMode(appState, physicsWorld, selectionManager, eventB
   canvasRenderer.ghostState = { pos: null, type: null };
 });
 
+const connectMode = new ConnectMode(appState, physicsWorld, selectionManager, eventBus, camera, () => {
+  interactionManager.setMode('select');
+  palettePanel.clearActive();
+  canvasRenderer.connectFeedback = { anchorWorldA: null, mouseWorldPos: null, color: '#22c55e' };
+});
+
 const interactionManager = new InteractionManager(layout.canvas, camera, selectMode);
 interactionManager.addMode(placeMode);
+interactionManager.addMode(connectMode);
 
 // --- Palette ---
-const palettePanel = new PalettePanel(layout.palette, (type) => {
-  placeMode.setPrimitiveType(type);
-  interactionManager.setMode('place');
-});
+const palettePanel = new PalettePanel(
+  layout.palette,
+  (type) => {
+    placeMode.setPrimitiveType(type);
+    interactionManager.setMode('place');
+  },
+  (type) => {
+    connectMode.setConnectionType(type);
+    interactionManager.setMode('connect');
+  },
+);
 
 // --- Sim Settings Panel ---
 const simSettingsPanel = new SimSettingsPanel(layout.simSettingsPanel, appState, physicsWorld, eventBus);
@@ -51,7 +66,7 @@ const simSettingsPanel = new SimSettingsPanel(layout.simSettingsPanel, appState,
 // --- Properties Panel ---
 const propertiesPanel = new PropertiesPanel(layout.propertiesPanel, appState, physicsWorld, eventBus);
 
-// --- Update ghost and marquee state each frame for rendering ---
+// --- Update ghost, marquee, and connect feedback each frame ---
 function updateOverlayState(): void {
   if (interactionManager.getActiveModeName() === 'place') {
     const pm = interactionManager.getMode<PlaceMode>('place');
@@ -65,11 +80,35 @@ function updateOverlayState(): void {
   // Marquee selection rect
   const sm = interactionManager.getMode<SelectMode>('select');
   canvasRenderer.marqueeRect = sm ? sm.getMarqueeRect() : null;
+
+  // Connect mode feedback line
+  if (interactionManager.getActiveModeName() === 'connect') {
+    const cm = interactionManager.getMode<ConnectMode>('connect');
+    if (cm) {
+      const state = cm.getConnectState();
+      canvasRenderer.connectFeedback = {
+        anchorWorldA: state.anchorWorldA,
+        mouseWorldPos: state.mouseWorldPos,
+        color: '#22c55e',
+      };
+    }
+  } else {
+    canvasRenderer.connectFeedback = { anchorWorldA: null, mouseWorldPos: null, color: '#22c55e' };
+  }
 }
 
-// Properties panel handles selection changes via its own event listener
+// --- Handle deleting primitives that have connections ---
+eventBus.on('primitive:deleted', ({ id }) => {
+  // Remove any connections involving this body
+  const connections = appState.getConnectionsForBody(id);
+  for (const conn of connections) {
+    physicsWorld.removeConnection(conn.id);
+    appState.removeConnection(conn.id);
+    eventBus.emit('connection:deleted', { id: conn.id });
+  }
+});
 
-// --- Playback bar: simple play/pause/reset for now ---
+// --- Playback bar ---
 layout.playbackBar.innerHTML = `
   <button id="btn-play" class="px-3 py-1 bg-green-600 hover:bg-green-500 text-white rounded text-xs font-medium transition-colors">Play</button>
   <button id="btn-pause" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 text-white rounded text-xs font-medium transition-colors">Pause</button>

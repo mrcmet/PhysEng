@@ -4,11 +4,17 @@ import { Primitive, BodyState } from './primitives/Primitive';
 import { RectanglePrimitive } from './primitives/RectanglePrimitive';
 import { CirclePrimitive } from './primitives/CirclePrimitive';
 import { GroundPrimitive } from './primitives/GroundPrimitive';
+import type { Connection } from './connections/Connection';
+import { RevoluteConnection } from './connections/RevoluteConnection';
+import { WeldConnection } from './connections/WeldConnection';
+import { SpringConnection } from './connections/SpringConnection';
+import { DamperConnection } from './connections/DamperConnection';
 
 export class PhysicsWorld {
   private world: planck.World;
   private bodyMap = new Map<string, planck.Body>();
   private primitiveMap = new Map<string, Primitive>();
+  private jointMap = new Map<string, planck.Joint>();
   private fixedTimestep: number;
 
   constructor() {
@@ -118,7 +124,87 @@ export class PhysicsWorld {
     return this.world;
   }
 
+  addConnection(connection: Connection): void {
+    const bodyA = this.bodyMap.get(connection.props.bodyIdA);
+    const bodyB = this.bodyMap.get(connection.props.bodyIdB);
+    if (!bodyA || !bodyB) return;
+
+    const anchorA = new planck.Vec2(connection.props.localAnchorA.x, connection.props.localAnchorA.y);
+    const anchorB = new planck.Vec2(connection.props.localAnchorB.x, connection.props.localAnchorB.y);
+
+    let joint: planck.Joint;
+
+    if (connection instanceof RevoluteConnection) {
+      const worldAnchor = bodyA.getWorldPoint(anchorA);
+      joint = this.world.createJoint(new planck.RevoluteJoint({
+        enableLimit: connection.props.enableLimit,
+        lowerAngle: connection.props.lowerAngle,
+        upperAngle: connection.props.upperAngle,
+        enableMotor: connection.props.enableMotor,
+        motorSpeed: connection.props.motorSpeed,
+        maxMotorTorque: connection.props.maxMotorTorque,
+      }, bodyA, bodyB, worldAnchor))!;
+
+    } else if (connection instanceof WeldConnection) {
+      const worldAnchor = bodyA.getWorldPoint(anchorA);
+      joint = this.world.createJoint(new planck.WeldJoint({
+        frequencyHz: connection.props.frequencyHz,
+        dampingRatio: connection.props.dampingRatio,
+      }, bodyA, bodyB, worldAnchor))!;
+
+    } else if (connection instanceof SpringConnection) {
+      const worldA = bodyA.getWorldPoint(anchorA);
+      const worldB = bodyB.getWorldPoint(anchorB);
+      joint = this.world.createJoint(new planck.DistanceJoint({
+        frequencyHz: connection.props.frequencyHz,
+        dampingRatio: connection.props.dampingRatio,
+        length: connection.props.restLength,
+      }, bodyA, bodyB, worldA, worldB))!;
+
+    } else if (connection instanceof DamperConnection) {
+      const worldA = bodyA.getWorldPoint(anchorA);
+      const worldB = bodyB.getWorldPoint(anchorB);
+      joint = this.world.createJoint(new planck.DistanceJoint({
+        frequencyHz: connection.props.frequencyHz,
+        dampingRatio: connection.props.dampingRatio,
+        length: connection.props.restLength,
+      }, bodyA, bodyB, worldA, worldB))!;
+
+    } else {
+      return;
+    }
+
+    this.jointMap.set(connection.id, joint);
+  }
+
+  removeConnection(id: string): void {
+    const joint = this.jointMap.get(id);
+    if (joint) {
+      this.world.destroyJoint(joint);
+      this.jointMap.delete(id);
+    }
+  }
+
+  getJoint(id: string): planck.Joint | undefined {
+    return this.jointMap.get(id);
+  }
+
+  /** Get world-space anchor positions for a connection */
+  getConnectionAnchors(id: string): { worldA: planck.Vec2; worldB: planck.Vec2 } | null {
+    const joint = this.jointMap.get(id);
+    if (!joint) return null;
+    const anchorA = joint.getAnchorA();
+    const anchorB = joint.getAnchorB();
+    return { worldA: anchorA, worldB: anchorB };
+  }
+
   reset(): void {
+    // Destroy all joints first (must happen before bodies)
+    for (const [, joint] of this.jointMap) {
+      this.world.destroyJoint(joint);
+    }
+    this.jointMap.clear();
+
     // Destroy all bodies
     for (const [, body] of this.bodyMap) {
       this.world.destroyBody(body);

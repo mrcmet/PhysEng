@@ -1,6 +1,7 @@
 import { Camera } from './Camera';
 import { GridRenderer } from './GridRenderer';
 import { PrimitiveRenderer } from './PrimitiveRenderer';
+import { ConnectionRenderer } from './ConnectionRenderer';
 import { GhostRenderer } from './GhostRenderer';
 import { CANVAS_BG_COLOR } from './RenderConfig';
 import type { AppState } from '../core/AppState';
@@ -14,16 +15,24 @@ export interface GhostState {
   type: PrimitiveType | null;
 }
 
+export interface ConnectFeedback {
+  anchorWorldA: { x: number; y: number } | null;
+  mouseWorldPos: { x: number; y: number } | null;
+  color: string;
+}
+
 export class CanvasRenderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private camera: Camera;
   private gridRenderer: GridRenderer;
   private primitiveRenderer: PrimitiveRenderer;
+  private connectionRenderer: ConnectionRenderer;
   private ghostRenderer: GhostRenderer;
   private dpr = 1;
   ghostState: GhostState = { pos: null, type: null };
   marqueeRect: MarqueeRect | null = null;
+  connectFeedback: ConnectFeedback = { anchorWorldA: null, mouseWorldPos: null, color: '#22c55e' };
 
   constructor(canvas: HTMLCanvasElement, camera: Camera) {
     this.canvas = canvas;
@@ -31,6 +40,7 @@ export class CanvasRenderer {
     this.camera = camera;
     this.gridRenderer = new GridRenderer();
     this.primitiveRenderer = new PrimitiveRenderer();
+    this.connectionRenderer = new ConnectionRenderer();
     this.ghostRenderer = new GhostRenderer();
     this.handleResize();
   }
@@ -62,6 +72,25 @@ export class CanvasRenderer {
 
     // Draw primitives
     this.primitiveRenderer.render(ctx, this.camera, appState, physicsWorld);
+
+    // Draw connections (springs, dampers, joints)
+    this.connectionRenderer.render(ctx, this.camera, appState, physicsWorld);
+
+    // Draw connect-mode feedback line (body A → mouse)
+    if (this.connectFeedback.anchorWorldA && this.connectFeedback.mouseWorldPos) {
+      const a = this.connectFeedback.anchorWorldA;
+      const m = this.connectFeedback.mouseWorldPos;
+      const zoom = this.camera.getZoom();
+      ctx.save();
+      ctx.strokeStyle = this.connectFeedback.color;
+      ctx.lineWidth = 1.5 / zoom;
+      ctx.setLineDash([6 / zoom, 4 / zoom]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(m.x, m.y);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Draw placement ghost
     this.ghostRenderer.render(ctx, this.camera, this.ghostState.pos, this.ghostState.type);

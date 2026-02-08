@@ -1,4 +1,5 @@
 import type { PrimitiveType } from '../physics/primitives/Primitive';
+import type { ConnectionType } from '../physics/connections/Connection';
 
 export interface Vec2 {
   x: number;
@@ -13,6 +14,11 @@ export interface EventMap {
   'primitive:created': { id: string };
   'primitive:deleted': { id: string };
   'primitive:property-changed': { id: string; key: string; value: unknown };
+
+  // Connection lifecycle
+  'connection:created': { id: string };
+  'connection:deleted': { id: string };
+  'connection:property-changed': { id: string; key: string; value: unknown };
 
   // Selection
   'selection:changed': { selected: string[] };
