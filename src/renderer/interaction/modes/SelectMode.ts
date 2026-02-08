@@ -147,6 +147,10 @@ export class SelectMode implements InteractionMode {
   }
 
   onKeyDown(e: KeyboardEvent): void {
+    // Ignore key events when focused on input fields (e.g. properties panel)
+    const tag = (e.target as HTMLElement)?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
     if ((e.key === 'Delete' || e.key === 'Backspace') && this.appState.simulationState === 'editing') {
       const ids = this.selectionManager.getSelectedIds();
       for (const id of ids) {

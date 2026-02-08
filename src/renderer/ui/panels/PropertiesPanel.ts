@@ -113,8 +113,11 @@ export class PropertiesPanel {
     this.container.querySelectorAll<HTMLInputElement>('[data-prop]').forEach((input) => {
       const prop = input.dataset.prop!;
       const handler = () => this.applyChange(prim, prop, input);
+      // Number inputs: only fire on Enter/blur/spinner to avoid
+      // intermediate values during typing (e.g. "1" → "" → "5")
       input.addEventListener('change', handler);
-      if (input.type === 'number' || input.type === 'text') {
+      // Text and color inputs: live updates are fine
+      if (input.type === 'text' || input.type === 'color') {
         input.addEventListener('input', handler);
       }
     });
@@ -228,6 +231,10 @@ export class PropertiesPanel {
       friction: p.friction,
       restitution: p.restitution,
     });
+
+    // Reset mass data after fixture changes
+    body.resetMassData();
+    body.setAwake(true);
   }
 
   private numField(label: string, prop: string, value: number, min: number, max: number, step: number, dis: string): string {
