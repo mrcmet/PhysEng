@@ -4,6 +4,7 @@ export class Layout {
   readonly palette: HTMLElement;
   readonly canvasContainer: HTMLElement;
   readonly canvas: HTMLCanvasElement;
+  readonly simSettingsPanel: HTMLElement;
   readonly propertiesPanel: HTMLElement;
   readonly graphPanel: HTMLElement;
   readonly playbackBar: HTMLElement;
@@ -45,17 +46,32 @@ export class Layout {
     centerColumn.appendChild(this.canvasContainer);
     centerColumn.appendChild(this.graphPanel);
 
-    // Properties panel (right sidebar)
+    // Right sidebar container
+    const rightSidebar = this.el('div',
+      'w-56 bg-gray-800 border-l border-gray-700 flex flex-col shrink-0 overflow-hidden');
+
+    // Simulation settings panel (top section)
+    this.simSettingsPanel = this.el('div',
+      'p-3 border-b border-gray-700 shrink-0');
+    this.simSettingsPanel.innerHTML = `
+      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Simulation</h3>
+      <p class="text-xs text-gray-500">Loading...</p>
+    `;
+
+    // Properties panel (bottom section, scrollable)
     this.propertiesPanel = this.el('div',
-      'w-56 bg-gray-800 border-l border-gray-700 p-3 overflow-y-auto shrink-0');
+      'p-3 overflow-y-auto flex-1 min-h-0');
     this.propertiesPanel.innerHTML = `
       <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Properties</h3>
       <p class="text-xs text-gray-500">No selection</p>
     `;
 
+    rightSidebar.appendChild(this.simSettingsPanel);
+    rightSidebar.appendChild(this.propertiesPanel);
+
     mainArea.appendChild(this.palette);
     mainArea.appendChild(centerColumn);
-    mainArea.appendChild(this.propertiesPanel);
+    mainArea.appendChild(rightSidebar);
 
     // Playback bar (bottom)
     this.playbackBar = this.el('div',

@@ -12,6 +12,8 @@ import { SelectionManager } from './interaction/SelectionManager';
 import { SelectMode } from './interaction/modes/SelectMode';
 import { PlaceMode } from './interaction/modes/PlaceMode';
 import { PalettePanel } from './ui/panels/PalettePanel';
+import { PropertiesPanel } from './ui/panels/PropertiesPanel';
+import { SimSettingsPanel } from './ui/panels/SimSettingsPanel';
 
 // --- Bootstrap ---
 const app = document.getElementById('app')!;
@@ -43,6 +45,12 @@ const palettePanel = new PalettePanel(layout.palette, (type) => {
   interactionManager.setMode('place');
 });
 
+// --- Sim Settings Panel ---
+const simSettingsPanel = new SimSettingsPanel(layout.simSettingsPanel, appState, physicsWorld, eventBus);
+
+// --- Properties Panel ---
+const propertiesPanel = new PropertiesPanel(layout.propertiesPanel, appState, physicsWorld, eventBus);
+
 // --- Update ghost and marquee state each frame for rendering ---
 function updateOverlayState(): void {
   if (interactionManager.getActiveModeName() === 'place') {
@@ -59,41 +67,7 @@ function updateOverlayState(): void {
   canvasRenderer.marqueeRect = sm ? sm.getMarqueeRect() : null;
 }
 
-// --- Update properties panel on selection change ---
-eventBus.on('selection:changed', ({ selected }) => {
-  const propsEl = layout.propertiesPanel;
-  if (selected.length === 0) {
-    propsEl.innerHTML = `
-      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Properties</h3>
-      <p class="text-xs text-gray-500">No selection</p>
-    `;
-  } else if (selected.length === 1) {
-    const prim = appState.getPrimitive(selected[0]);
-    if (prim) {
-      const pos = physicsWorld.getBodyState(prim.id);
-      propsEl.innerHTML = `
-        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Properties</h3>
-        <div class="space-y-2 text-xs">
-          <div><span class="text-gray-500">Type:</span> <span class="text-gray-300">${prim.props.type}</span></div>
-          <div><span class="text-gray-500">Label:</span> <span class="text-gray-300">${prim.props.label}</span></div>
-          <div><span class="text-gray-500">Position:</span> <span class="text-gray-300">(${pos?.position.x.toFixed(2)}, ${pos?.position.y.toFixed(2)})</span></div>
-          <div><span class="text-gray-500">Density:</span> <span class="text-gray-300">${prim.props.density}</span></div>
-          <div><span class="text-gray-500">Friction:</span> <span class="text-gray-300">${prim.props.friction}</span></div>
-          <div><span class="text-gray-500">Restitution:</span> <span class="text-gray-300">${prim.props.restitution}</span></div>
-          <div class="flex items-center gap-2 mt-2">
-            <span class="inline-block w-3 h-3 rounded" style="background:${prim.props.color}"></span>
-            <span class="text-gray-300">${prim.props.color}</span>
-          </div>
-        </div>
-      `;
-    }
-  } else {
-    propsEl.innerHTML = `
-      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Properties</h3>
-      <p class="text-xs text-gray-500">${selected.length} objects selected</p>
-    `;
-  }
-});
+// Properties panel handles selection changes via its own event listener
 
 // --- Playback bar: simple play/pause/reset for now ---
 layout.playbackBar.innerHTML = `
@@ -126,6 +100,7 @@ btnPlay.addEventListener('click', () => {
   }
   appState.simulationState = 'playing';
   simStatus.textContent = 'Playing';
+  eventBus.emit('simulation:state-changed', { state: 'playing' });
 });
 
 btnPause.addEventListener('click', () => {
@@ -133,6 +108,7 @@ btnPause.addEventListener('click', () => {
     appState.simulationState = 'paused';
     simulationClock.pause();
     simStatus.textContent = 'Paused';
+    eventBus.emit('simulation:state-changed', { state: 'paused' });
   }
 });
 
@@ -156,6 +132,8 @@ btnReset.addEventListener('click', () => {
       body.setAwake(true);
     }
   }
+
+  eventBus.emit('simulation:state-changed', { state: 'editing' });
 });
 
 // --- Render loop ---

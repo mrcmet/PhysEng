@@ -26,6 +26,15 @@ export class PhysicsWorld {
     this.fixedTimestep = Math.max(PhysicsConfig.timestepMin, Math.min(PhysicsConfig.timestepMax, dt));
   }
 
+  getGravity(): { x: number; y: number } {
+    const g = this.world.getGravity();
+    return { x: g.x, y: g.y };
+  }
+
+  setGravity(x: number, y: number): void {
+    this.world.setGravity(new planck.Vec2(x, y));
+  }
+
   addPrimitive(primitive: Primitive): void {
     const props = primitive.props;
 
